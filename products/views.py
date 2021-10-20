@@ -59,9 +59,8 @@ class OrderView(APIView):
     def get_permissions(self):
         if self.request.method=='POST' or self.request.method=='GET':
             permission_classes = [IsAuthenticated,]
-        elif self.request.method == 'PATCH':
-            permission_classes = [IsAdminUser,]    
-
+        return [perm() for perm in permission_classes]    
+        
     def post(self, request, *args, **kwargs):
         data = request.data.copy() # QUESTION 3 ---- request.data.copy() - what does it return?
         total = data.get('total', None)#QUESTION 4 ----- if I change total's amount, does it also change in the web page?
@@ -84,6 +83,36 @@ class OrderView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'message': 'Buyurtma yaratildi'}, serializer.data, status=status.HTTP_201_CREATED)
+
+    
+
+    def get(self, request, *args, **kwargs):
+        search = request.query_params.get('search')
+        if request.user.is_superuser:
+            queryset = Order.objects.all()
+        else:
+            queryset = Order.objects.filter(user=request.user)
+
+        
+            
+        if search:
+            searching_list = str(search).split(' ')
+            queries = [Q(user_full_name__icontains=word) |
+                       Q(user_full_name__icontains=word) |
+                       Q(status__icontains=word) |
+                       Q(product__title__icontains=word) for word in searching_list]
+            query = queries.pop()
+            for itemss in queries:
+                query |= itemss
+
+            queryset = queryset.filter(query)
+
+        paginator = DefaultLimitOffsetPagination()
+        return paginator.generate_response(queryset, OrderGetSerializer, request)
+        
+class OrderPatchView(APIView):
+
+    permission_classes = [IsAdminUser]
 
     def patch(self,request, pk, *args, **kwargs):
         
@@ -137,32 +166,6 @@ class OrderView(APIView):
                 
             return Response({'message': 'status changed to Yetkazilmadi'})
         return Response({'message': 'provide with command=Yetkazildi, Yetkazilmadi'})
-
-    def get(self, request, *args, **kwargs):
-        search = request.query_params.get('search')
-        if request.user.is_superuser:
-            queryset = Order.objects.all()
-        else:
-            try:
-               queryset = Order.objects.filter(user=request.user)
-            except:
-                return Response({"No data submitted!"})   
-            
-        if search:
-            searching_list = str(search).split(' ')
-            queries = [Q(client_name__icontains=word) |
-                       Q(client_name__icontains=word) |
-                       Q(status__icontains=word) |
-                       Q(product__name__icontains=word) for word in searching_list]
-            query = queries.pop()
-            for item in queries:
-                query |= item
-
-            queryset = queryset.filter(query)
-
-        paginator = DefaultLimitOffsetPagination()
-        return paginator.generate_response(queryset, OrderGetSerializer, request)
-
 class StatisticsView(APIView):
     permission_classes = [IsAdminUser,]
     def get(self, request, *args, **kwargs ):

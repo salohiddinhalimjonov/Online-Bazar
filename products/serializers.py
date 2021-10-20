@@ -23,8 +23,8 @@ class SliderSerializer(serializers.ModelSerializer):
 
 class OrderGetSerializer(serializers.ModelSerializer):
     #region = RegionSerializer(read_only=True)
-    user = UserProfileSerializer(read_only=True)
-    product = ProductSerializer(read_only=True)
+    #user = UserProfileSerializer(read_only=True)
+    # product = ProductSerializer(read_only=True)
     class Meta:
         model = Order
         fields = ('id', 'user',
